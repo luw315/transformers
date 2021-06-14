@@ -82,6 +82,10 @@ class DebertaV2Config(PretrainedConfig):
             :obj:`["p2c"]`, :obj:`["p2c", "c2p"]`, :obj:`["p2c", "c2p", 'p2p"]`.
         layer_norm_eps (:obj:`float`, optional, defaults to 1e-12):
             The epsilon used by the layer normalization layers.
+        cls_dropout (:obj:`float`, `optional`):
+            cls dropout.
+        apply_lora (:obj:`bool`, `optional`):
+            apply Lora.
     """
     model_type = "deberta-v2"
 
@@ -106,6 +110,8 @@ class DebertaV2Config(PretrainedConfig):
         pos_att_type=None,
         pooler_dropout=0,
         pooler_hidden_act="gelu",
+        cls_dropout=None,
+        apply_lora=False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -136,3 +142,5 @@ class DebertaV2Config(PretrainedConfig):
         self.pooler_hidden_size = kwargs.get("pooler_hidden_size", hidden_size)
         self.pooler_dropout = pooler_dropout
         self.pooler_hidden_act = pooler_hidden_act
+        self.cls_dropout = cls_dropout
+        self.apply_lora = apply_lora

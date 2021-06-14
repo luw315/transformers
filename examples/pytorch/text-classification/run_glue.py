@@ -182,6 +182,10 @@ class ModelArguments:
             "with private models)."
         },
     )
+    apply_lora: Optional[bool] = field(
+        default=False,
+        metadata={"help": "Whether to apply LoRA or not."},
+    )
 
 
 def main():
@@ -314,6 +318,8 @@ def main():
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
+        cls_dropout=training_args.cls_dropout,
+        apply_lora=model_args.apply_lora,
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
@@ -330,6 +336,10 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+
+    if model_args.apply_lora:
+        for name, param in model.named_parameters():
+            param.requires_grad = ('lora' in name)
 
     # Preprocessing the datasets
     if data_args.task_name is not None:

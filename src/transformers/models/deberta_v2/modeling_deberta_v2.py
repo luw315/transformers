@@ -572,6 +572,19 @@ class DisentangledSelfAttention(nn.Module):
         self.key_proj = nn.Linear(config.hidden_size, self.all_head_size, bias=True)
         self.value_proj = nn.Linear(config.hidden_size, self.all_head_size, bias=True)
 
+        self.apply_lora = config.apply_lora
+        if config.apply_lora:
+            self.lora_alpha = 16
+            self.lora_r = 8
+            self.query_lora_a = nn.Linear(config.hidden_size, self.lora_r, bias=False)
+            nn.init.normal_(self.query_lora_a.weight)
+            self.query_lora_b = nn.Linear(self.lora_r, self.all_head_size, bias=False)
+            nn.init.zeros_(self.query_lora_b.weight)
+            self.value_lora_a = nn.Linear(config.hidden_size, self.lora_r, bias=False)
+            nn.init.normal_(self.value_lora_a.weight)
+            self.value_lora_b = nn.Linear(self.lora_r, self.all_head_size, bias=False)
+            nn.init.zeros_(self.value_lora_b.weight)
+
         self.share_att_key = getattr(config, "share_att_key", False)
         self.pos_att_type = config.pos_att_type if config.pos_att_type is not None else []
         self.relative_attention = getattr(config, "relative_attention", False)
@@ -640,9 +653,15 @@ class DisentangledSelfAttention(nn.Module):
         """
         if query_states is None:
             query_states = hidden_states
-        query_layer = self.transpose_for_scores(self.query_proj(query_states), self.num_attention_heads)
-        key_layer = self.transpose_for_scores(self.key_proj(hidden_states), self.num_attention_heads)
-        value_layer = self.transpose_for_scores(self.value_proj(hidden_states), self.num_attention_heads)
+        q = self.query_proj(query_states)
+        k = self.key_proj(hidden_states)
+        v = self.value_proj(hidden_states)
+        if self.apply_lora:
+            q = q + self.query_lora_b(self.query_lora_a(query_states)) * (self.lora_alpha / self.lora_r)
+            v = v + self.value_lora_b(self.value_lora_a(hidden_states)) * (self.lora_alpha / self.lora_r)
+        query_layer = self.transpose_for_scores(q, self.num_attention_heads)
+        key_layer = self.transpose_for_scores(k, self.num_attention_heads)
+        value_layer = self.transpose_for_scores(v, self.num_attention_heads)
 
         rel_att = None
         # Take the dot product between "query" and "key" to get the raw attention scores.
